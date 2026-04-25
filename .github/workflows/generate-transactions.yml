@@ -1,13 +1,17 @@
 name: Generate Transactions
 
 on:
+  push:
+    branches:
+      - main
+
   # Run manually from the Actions tab
   workflow_dispatch:
     inputs:
       tx_count:
         description: "Number of transactions to send"
         required: false
-        default: "100"
+        default: "500"
       delay_ms:
         description: "Delay between transactions (ms)"
         required: false
