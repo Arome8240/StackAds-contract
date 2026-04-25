@@ -68,7 +68,7 @@ jobs:
           CONTRACT_ADDRESS: ${{ secrets.CONTRACT_ADDRESS }}
           RECIPIENT_ADDRESS: ${{ secrets.RECIPIENT_ADDRESS }}
           STACKS_NETWORK: ${{ inputs.network || 'mainnet' }}
-          TX_COUNT: ${{ inputs.tx_count || '100' }}
+          TX_COUNT: ${{ inputs.tx_count || '400' }}
           DELAY_MS: ${{ inputs.delay_ms || '5000' }}
           PAUSE_ON_RATE_LIMIT_MS: "30000"
           FEE: "6000"
