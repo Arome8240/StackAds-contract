@@ -3,29 +3,23 @@ import {
   makeContractCall,
   standardPrincipalCV,
   uintCV,
-  noneCV,
-  getAddressFromPrivateKey,
 } from "@stacks/transactions";
 import { STACKS_MAINNET, STACKS_TESTNET, createNetwork } from "@stacks/network";
 import { config } from "dotenv";
 config();
 
 const PRIVATE_KEY =
-  process.env.PRIVATE_KEY || process.env.DEPLOYER_KEY || "0xPrivateKey";
+  process.env.PRIVATE_KEY ||
+  process.env.DEPLOYER_KEY ||
+  process.env.privateKey ||
+  "0xPrivateKey";
 
-const STACKS_NETWORK = (process.env.STACKS_NETWORK || "mainnet") as
-  | "mainnet"
-  | "testnet";
-
+const STACKS_NETWORK = "mainnet";
 const STACKS_API_URL = process.env.STACKS_API_URL;
 
-// Address that deployed stackads-token
 const CONTRACT_ADDRESS =
   process.env.CONTRACT_ADDRESS || "SP25H46Z9YCAB1TW93YG42WM0SREG9SC5EZB977TJ";
-
 const CONTRACT_NAME = "stackads-token";
-
-// Recipient of each transfer
 const RECIPIENT_ADDRESS =
   process.env.RECIPIENT_ADDRESS || "SP1EQNTKNRGME36P9EEXZCFFNCYBA50VN51676JB";
 
@@ -37,12 +31,15 @@ const PAUSE_ON_RATE_LIMIT_MS = Number.parseInt(
   10,
 );
 
-if (!PRIVATE_KEY || PRIVATE_KEY === "0xPrivateKey") {
+if (!PRIVATE_KEY) {
   throw new Error("Set PRIVATE_KEY or DEPLOYER_KEY in .env");
 }
 
-// Derive sender address from the private key — must match what the contract checks as tx-sender
-const SENDER_ADDRESS = getAddressFromPrivateKey(PRIVATE_KEY, STACKS_NETWORK);
+if (!CONTRACT_ADDRESS) {
+  throw new Error(
+    "Set CONTRACT_ADDRESS in .env (deployer address of the contract)",
+  );
+}
 
 function buildNetwork() {
   const base = STACKS_NETWORK === "mainnet" ? STACKS_MAINNET : STACKS_TESTNET;
@@ -54,32 +51,28 @@ function buildNetwork() {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function isRateLimit(err: unknown) {
+function isRateLimit(err: any) {
   const msg = JSON.stringify(err || "").toLowerCase();
   return msg.includes("rate") || msg.includes("per-minute");
 }
 
 async function sendTx(index: number) {
   const network = buildNetwork();
+  const recipient = RECIPIENT_ADDRESS || CONTRACT_ADDRESS;
 
-  // Vary amount slightly per tx to produce distinct payloads (base: 1 STAD = 1_000_000 micro)
-  const amount = 1_000_000n + BigInt(index);
+  // Vary the amount slightly to produce distinct tx payloads
+  const amount = 1_000_000n + BigInt(index); // base 1 STAD (6 decimals) + index
 
   console.log(
-    `\n[${index}/${TX_COUNT}] Transferring ${amount} micro-STAD to ${RECIPIENT_ADDRESS}...`,
+    `\n[${index}/${TX_COUNT}] Broadcasting mint ${amount} to ${recipient}...`,
   );
 
   try {
     const tx = await makeContractCall({
       contractAddress: CONTRACT_ADDRESS,
       contractName: CONTRACT_NAME,
-      functionName: "transfer",
-      functionArgs: [
-        uintCV(amount),
-        standardPrincipalCV(SENDER_ADDRESS), // sender — derived from PRIVATE_KEY
-        standardPrincipalCV(RECIPIENT_ADDRESS),
-        noneCV(), // memo
-      ],
+      functionName: "mint",
+      functionArgs: [uintCV(amount), standardPrincipalCV(recipient)],
       senderKey: PRIVATE_KEY,
       network,
       fee: FEE,
@@ -97,7 +90,7 @@ async function sendTx(index: number) {
       );
       return { ok: true, txid: result.txid, error: null };
     }
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error(`❌ Tx ${index} threw:`, error);
     return { ok: false, txid: null, error };
   }
@@ -105,13 +98,12 @@ async function sendTx(index: number) {
 
 async function main() {
   console.log(
-    `Sending ${TX_COUNT} transfer transactions on ${STACKS_NETWORK} for ${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
+    `Sending ${TX_COUNT} mint transactions to ${STACKS_NETWORK} for ${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
   );
-  console.log(`Sender: ${SENDER_ADDRESS}`);
 
   let success = 0;
   let failed = 0;
-  const errors: Array<{ index: number; error: unknown }> = [];
+  const errors: Array<{ index: number; error: any }> = [];
 
   for (let i = 1; i <= TX_COUNT; i++) {
     const res = await sendTx(i);
@@ -130,7 +122,7 @@ async function main() {
       }
     }
 
-    if (DELAY_MS > 0 && i < TX_COUNT) await sleep(DELAY_MS);
+    if (DELAY_MS > 0) await sleep(DELAY_MS);
   }
 
   console.log(`\nDone. Success: ${success}, Failed: ${failed}`);
