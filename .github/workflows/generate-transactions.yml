@@ -24,13 +24,10 @@ on:
         options:
           - mainnet
           - testnet
-  # Optional: run on a schedule (e.g. daily at 08:00 UTC)
-  # schedule:
-  #   - cron: "0 8 * * *"
 
 jobs:
   generate-transactions:
-    name: Mint ${{ inputs.tx_count || '100' }} STAD transactions
+    name: Mint ${{ inputs.tx_count || '500' }} STAD transactions
     runs-on: ubuntu-latest
 
     steps:
